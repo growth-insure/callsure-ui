@@ -1,0 +1,90 @@
+deploy_to_vercel_windows:
+  stage: deploy
+  tags:
+    - windows
+    - call_log_analytics
+    - vercel_deployment
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_MESSAGE !~ /^ADDING_VERSIONS:/ && $CI_COMMIT_MESSAGE !~ /^DOC:/'
+      when: always
+    - if: '$CI_COMMIT_BRANCH =~ /^deploy-.*/'
+      when: always
+    - when: never
+
+  parallel:
+    matrix:
+      - CLIENT: reliance
+      - CLIENT: gi
+      # - CLIENT: demo
+
+  before_script:
+    - |
+        if ($env:CI_COMMIT_BRANCH -match '^deploy-(.+)$') {
+          $env:CLIENT = $Matches[1]
+          Write-Host "⚡ Deploying single client from branch:' $env:CLIENT"
+        }
+
+  script:
+    - |
+        node -v
+        npm -v
+
+    - |
+        npm install -g vercel
+
+    - |
+        Write-Host "📄 Generating .env for $env:CLIENT"
+
+        "NEXT_PUBLIC_CLIENT=$env:CLIENT" |
+          Out-File -Encoding utf8 .env
+
+        function Add-Env($envKey, $outKey) {
+          $value = (Get-Item env:$envKey -ErrorAction SilentlyContinue).Value
+          if (-not $value) {
+            Write-Error "Missing env var:' $envKey"
+            exit 1
+          }
+          "$outKey=$value" |
+            Out-File -Append -Encoding utf8 .env
+        }
+
+        Add-Env ("NEXT_PUBLIC_SUPABASE_URL_$env:CLIENT") "NEXT_PUBLIC_SUPABASE_URL"
+        Add-Env ("NEXT_PUBLIC_SUPABASE_ANON_KEY_$env:CLIENT") "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+        Add-Env ("NEXT_PUBLIC_TAB_INFO_TITLE_$env:CLIENT") "NEXT_PUBLIC_TAB_INFO_TITLE"
+        Add-Env ("NEXT_PUBLIC_TAB_INFO_DESCRIPTION_$env:CLIENT") "NEXT_PUBLIC_TAB_INFO_DESCRIPTION"
+        Add-Env ("NEXT_PUBLIC_LOGIN_LOGO_$env:CLIENT") "NEXT_PUBLIC_LOGIN_LOGO"
+        Add-Env ("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY_$env:CLIENT") "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY"
+        Add-Env ("NEXT_PUBLIC_APP_URL_$env:CLIENT") "NEXT_PUBLIC_APP_URL"
+        Add-Env ("NEXT_PUBLIC_PASSWORD_RESET_REDIRECT_$env:CLIENT") "NEXT_PUBLIC_PASSWORD_RESET_REDIRECT"
+
+        if (-not $env:NEXT_PUBLIC_SENDGRID_FROM_EMAIL) {
+          Write-Error "Missing NEXT_PUBLIC_SENDGRID_FROM_EMAIL"
+          exit 1
+        }
+
+        if (-not $env:NEXT_PUBLIC_SENDGRID_API_KEY) {
+          Write-Error "Missing NEXT_PUBLIC_SENDGRID_API_KEY"
+          exit 1
+        }
+
+        "NEXT_PUBLIC_SENDGRID_FROM_EMAIL=$env:NEXT_PUBLIC_SENDGRID_FROM_EMAIL" |
+          Out-File -Append .env
+
+        "NEXT_PUBLIC_SENDGRID_API_KEY=$env:NEXT_PUBLIC_SENDGRID_API_KEY" |
+          Out-File -Append .env
+
+    - |
+        vercel link `
+          --project ("call-analytics-" + $env:CLIENT) `
+          --token $env:VERCEL_TOKEN `
+          --yes
+
+    - |
+        vercel pull --yes --environment=production --token $env:VERCEL_TOKEN
+
+    - |
+        vercel build --prod --token $env:VERCEL_TOKEN
+
+    - |
+        vercel deploy --prod --token $env:VERCEL_TOKEN

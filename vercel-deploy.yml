@@ -1,0 +1,86 @@
+deploy_to_vercel:
+  stage: deploy
+  image: node:latest
+  tags:
+    - call_log_analytics
+    - vercel_deployment
+
+  # Only run on main or deploy-* branches
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_MESSAGE !~ /^ADDING_VERSIONS:/ && $CI_COMMIT_MESSAGE !~ /^DOC:/'
+      when: always
+    - if: '$CI_COMMIT_BRANCH =~ /^deploy-.*/'
+      when: always
+    - when: never  # Default deny all others
+
+  parallel:
+    matrix:
+      # When deploying from main, run full matrix
+      - CLIENT: reliance
+      - CLIENT: gi
+      - CLIENT: demo
+      #- CLIENT: client3
+
+    # This matrix is ignored when deploying from `deploy-<client>` branches
+
+  before_script:
+    # If branch is deploy-gi → extract "gi"
+    - |
+      if [[ "$CI_COMMIT_BRANCH" =~ ^deploy-(.+)$ ]]; then
+        CLIENT="${BASH_REMATCH[1]}"
+        echo "⚡ Deploying single client from branch: $CLIENT"
+      fi
+
+  script:
+    - npm install -g vercel
+
+    # Dynamically load environment variables into .env using indirect expansion
+    - |
+      echo "NEXT_PUBLIC_CLIENT=$CLIENT" > .env
+
+      url_var="NEXT_PUBLIC_SUPABASE_URL_${CLIENT}"
+      echo "NEXT_PUBLIC_SUPABASE_URL=${!url_var}" >> .env
+
+      anon_var="NEXT_PUBLIC_SUPABASE_ANON_KEY_${CLIENT}"
+      echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${!anon_var}" >> .env
+
+      title_var="NEXT_PUBLIC_TAB_INFO_TITLE_${CLIENT}"
+      echo "NEXT_PUBLIC_TAB_INFO_TITLE=${!title_var}" >> .env
+
+      desc_var="NEXT_PUBLIC_TAB_INFO_DESCRIPTION_${CLIENT}"
+      echo "NEXT_PUBLIC_TAB_INFO_DESCRIPTION=${!desc_var}" >> .env
+
+      logo_var="NEXT_PUBLIC_LOGIN_LOGO_${CLIENT}"
+      echo "NEXT_PUBLIC_LOGIN_LOGO=${!logo_var}" >> .env
+
+      supabase_var="NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY_${CLIENT}"
+      echo "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=${!supabase_var}" >> .env
+
+      sendgrid_email_var="NEXT_PUBLIC_SENDGRID_FROM_EMAIL"
+      echo "NEXT_PUBLIC_SENDGRID_FROM_EMAIL=${!sendgrid_email_var}" >> .env
+
+      sendgrid_api_var="NEXT_PUBLIC_SENDGRID_API_KEY"
+      echo "NEXT_PUBLIC_SENDGRID_API_KEY=${!sendgrid_api_var}" >> .env
+
+      app_url_var="NEXT_PUBLIC_APP_URL_${CLIENT}"
+      echo "NEXT_PUBLIC_APP_URL=${!app_url_var}" >> .env
+
+      password_reset_var="NEXT_PUBLIC_PASSWORD_RESET_REDIRECT_${CLIENT}"
+      echo "NEXT_PUBLIC_PASSWORD_RESET_REDIRECT=${!password_reset_var}" >> .env
+      
+    # Optional: Debug (hide secret key)
+    # - echo "📄 .env for $CLIENT:"
+    # - grep -v NEXT_PUBLIC_SUPABASE_ANON_KEY .env
+
+    # Link to the correct project
+    - vercel link --project "call-analytics-${CLIENT}" --token=$VERCEL_TOKEN --yes
+
+    # Build and deploy
+    - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+    - vercel build --prod --token=$VERCEL_TOKEN
+    - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+
+    # # Vercel deploy flow
+    # - vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+    # - vercel build --prod --token=$VERCEL_TOKEN
+    # - vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN --name ${CLIENT}-app
