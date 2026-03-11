@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Mail, Calendar, MoreVertical, Shield, ShieldOff, Plus } from "lucide-react";
+import { User, Mail, Calendar, MoreVertical, Shield, ShieldOff, Plus, Pencil, Trash2, AtSign, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth/store";
 import {
@@ -14,6 +14,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import AddUserModal from "./AddUserModal";
 
 interface PendingUser {
@@ -41,6 +49,12 @@ export function UserManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter] = useState<FilterType>("all");
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null);
+  const [editFormData, setEditFormData] = useState({ name: "", email: "" });
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { user: currentUser } = useAuthStore();
 
   const fetchPendingUsers = useCallback(async () => {
@@ -122,6 +136,135 @@ export function UserManagement() {
     } catch (error) {
       console.error(`Error promoting user:`, error);
       toast.error(`Error promoting user`);
+    }
+  };
+
+  const openEditUserModal = (user: PendingUser) => {
+    setSelectedUser(user);
+    setEditFormData({
+      name: user.name || "",
+      email: user.email || "",
+    });
+    setIsEditUserModalOpen(true);
+  };
+
+  const closeEditUserModal = (force = false) => {
+    if (!force && (isUpdatingUser || isDeletingUser)) return;
+    setIsEditUserModalOpen(false);
+    setIsDeleteConfirmOpen(false);
+    setSelectedUser(null);
+    setEditFormData({ name: "", email: "" });
+  };
+
+  const handleEditInputChange = (field: "name" | "email", value: string) => {
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return;
+
+    const trimmedName = editFormData.name.trim();
+    const trimmedEmail = editFormData.email.trim();
+
+    if (!trimmedName) {
+      toast.error("Name is required");
+      return;
+    }
+
+    if (!trimmedEmail || !/\S+@\S+\.\S+/.test(trimmedEmail)) {
+      toast.error("A valid email is required");
+      return;
+    }
+
+    try {
+      setIsUpdatingUser(true);
+
+      const response = await fetch("/api/users/manage", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${currentUser?.id}`,
+        },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          name: trimmedName,
+          email: trimmedEmail,
+          user_metadata: {
+            ...(selectedUser.user_metadata || {}),
+            name: trimmedName,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || "Failed to update user");
+        return;
+      }
+
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === selectedUser.id
+            ? {
+                ...user,
+                name: trimmedName,
+                email: trimmedEmail,
+                user_metadata: {
+                  ...(user.user_metadata || {}),
+                  name: trimmedName,
+                },
+              }
+            : user
+        )
+      );
+
+      toast.success("User updated successfully");
+      closeEditUserModal(true);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast.error("Failed to update user");
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  };
+
+  const openDeleteConfirmation = () => {
+    if (!selectedUser || isUpdatingUser || isDeletingUser) return;
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setIsDeletingUser(true);
+
+      const response = await fetch("/api/users/manage", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${currentUser?.id}`,
+        },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || "Failed to delete user");
+        return;
+      }
+
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== selectedUser.id));
+      toast.success("User deleted successfully");
+      setIsDeleteConfirmOpen(false);
+      closeEditUserModal(true);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -313,11 +456,19 @@ export function UserManagement() {
                               variant="ghost" 
                               size="sm" 
                               className="h-8 w-8 p-0 hover:bg-gray-100 focus:bg-gray-100 cursor-pointer"
+                              aria-label={`Actions for ${user.name}`}
                             >
                               <MoreVertical className="h-4 w-4 text-gray-600" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-white border-gray-200 shadow-lg">
+                          <DropdownMenuItem
+                            onClick={() => openEditUserModal(user)}
+                            className="text-gray-700 hover:text-gray-900 hover:bg-gray-50 focus:text-gray-900 focus:bg-gray-50"
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit User
+                          </DropdownMenuItem>
                           {/* Show admin options for all users */}
                           {!user.isAdmin ? (
                             <DropdownMenuItem
@@ -353,6 +504,152 @@ export function UserManagement() {
           </div>
         )}
       </CardContent>
+
+      <Dialog
+        open={isEditUserModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeEditUserModal();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md h-[68vh] lg:h-[58vh] p-0 overflow-hidden flex flex-col bg-white">
+          <div className="p-4 border-b border-gray-200">
+            <DialogTitle className="text-xl font-semibold flex items-center space-x-2">
+              <Pencil className="w-5 h-5" />
+              <span>Edit User</span>
+            </DialogTitle>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            <div className="bg-white m-4 rounded-lg border border-gray-200">
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-user-name">Full Name</Label>
+                  <div className="relative">
+                    <User
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                      size={20}
+                    />
+                    <Input
+                      id="edit-user-name"
+                      value={editFormData.name}
+                      onChange={(event) => handleEditInputChange("name", event.target.value)}
+                      placeholder="Enter full name"
+                      className="bg-[#f0f7ff] pl-10"
+                      disabled={isUpdatingUser || isDeletingUser}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-user-email">Email</Label>
+                  <div className="relative">
+                    <AtSign
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                      size={20}
+                    />
+                    <Input
+                      id="edit-user-email"
+                      type="email"
+                      value={editFormData.email}
+                      onChange={(event) => handleEditInputChange("email", event.target.value)}
+                      placeholder="Enter email address"
+                      className="bg-[#f0f7ff] pl-10"
+                      disabled={isUpdatingUser || isDeletingUser}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-gray-200 flex items-center justify-between gap-2 bg-white">
+            <Button
+              type="button"
+              variant="destructive"
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={openDeleteConfirmation}
+              disabled={isUpdatingUser || isDeletingUser}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {isDeletingUser ? "Deleting..." : "Delete User"}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeEditUserModal}
+                disabled={isUpdatingUser || isDeletingUser}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#00BFA5] hover:bg-[#00BFA5]/90"
+                onClick={handleUpdateUser}
+                disabled={isUpdatingUser || isDeletingUser}
+              >
+                {isUpdatingUser ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={(open) => {
+          if (!isDeletingUser) {
+            setIsDeleteConfirmOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md p-0 overflow-hidden flex flex-col bg-white">
+          <div className="p-4 border-b border-gray-200">
+            <DialogTitle className="text-xl font-semibold flex items-center space-x-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              <span>Delete User</span>
+            </DialogTitle>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            <div className="bg-white m-4 rounded-lg border border-red-100">
+              <div className="p-6">
+                <DialogDescription className="text-sm text-gray-700 leading-6">
+                  Are you sure you want to delete{" "}
+                  <span className="font-semibold text-gray-900">
+                    {selectedUser?.name || selectedUser?.email}
+                  </span>
+                  ? This action cannot be undone.
+                </DialogDescription>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-2 bg-white">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              disabled={isDeletingUser}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={handleDeleteUser}
+              disabled={isDeletingUser}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {isDeletingUser ? "Deleting..." : "Yes, Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

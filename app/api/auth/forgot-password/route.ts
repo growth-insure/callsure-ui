@@ -16,10 +16,14 @@ export async function POST(request: Request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey =
       process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+
+    const requestOrigin = (() => {
+      try {
+        return new URL(request.url).origin;
+      } catch {
+        return null;
+      }
+    })();
 
     if (!supabaseUrl || !serviceRoleKey) {
       console.error("Supabase environment variables are missing.");
@@ -29,9 +33,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const redirectTo =
+    const explicitRedirect =
       process.env.NEXT_PUBLIC_PASSWORD_RESET_REDIRECT ||
-      `${baseUrl}/reset-password`;
+      process.env.PASSWORD_RESET_REDIRECT;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+    const baseUrl = appUrl || siteUrl || requestOrigin;
+
+    if (!explicitRedirect && !baseUrl) {
+      console.error("Password reset redirect URL is missing.");
+      return NextResponse.json(
+        { message: "Password reset is unavailable right now. Please contact support." },
+        { status: 500 }
+      );
+    }
+
+    const redirectTo = explicitRedirect || `${baseUrl}/reset-password`;
     const recoverUrl = `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent(
       redirectTo
     )}`;
@@ -69,4 +86,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
