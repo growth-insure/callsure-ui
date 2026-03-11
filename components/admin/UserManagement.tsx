@@ -580,7 +580,7 @@ export function UserManagement() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={closeEditUserModal}
+                onClick={() => closeEditUserModal()}
                 disabled={isUpdatingUser || isDeletingUser}
               >
                 Cancel
