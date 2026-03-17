@@ -383,9 +383,7 @@ export default function CallTable() {
                 onMouseLeave={() => setHoveredCallId(null)}
               >
                 <div className="flex items-center gap-1">
-                  {call.first_name && call.last_name
-                    ? `${call.first_name} ${call.last_name}`
-                    : "-"}
+                  {[call.first_name?.trim(), call.last_name?.trim()].filter(Boolean).join(" ") || "-"}
                   {call.hawksoft_url && 
                    Array.isArray(call.hawksoft_url) && 
                    call.hawksoft_url.length > 0 && (

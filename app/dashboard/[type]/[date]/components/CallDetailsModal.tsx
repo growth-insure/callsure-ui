@@ -78,7 +78,7 @@ export default function CallDetailsModal({
               <p>Issue Resolved: {data.issueResolved ? "Yes" : "No"}</p>
             </div>
             <div className="text-right">
-              <p>Customer Name: {data.first_name && data.last_name ? `${data.first_name} ${data.last_name}` : "N/A"}</p>
+              <p>Customer Name: {[data.first_name?.trim(), data.last_name?.trim()].filter(Boolean).join(" ") || "N/A"}</p>
               <p>Phone: {data.phone}</p>
               <p>Area: {data.area}</p>
               <p>Call Duration: {data.duration} Seconds</p>

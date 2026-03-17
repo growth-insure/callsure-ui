@@ -119,7 +119,7 @@ export default function FollowupTasksModal({
         );
         y += 7;
 
-        doc.text(`Customer Name - ${taskGroup.first_name && taskGroup.last_name ? `${taskGroup.first_name} ${taskGroup.last_name}` : "-"}`, 20, y);
+        doc.text(`Customer Name - ${[taskGroup.first_name?.trim(), taskGroup.last_name?.trim()].filter(Boolean).join(" ") || "-"}`, 20, y);
         y += 7;
 
         doc.setFontSize(10);
@@ -255,7 +255,7 @@ export default function FollowupTasksModal({
                         : " (outbound)"}</span>
                     </p>
                     <p>
-                      <span className="text-gray-500 font-semibold">Customer Name</span> - <span className="text-gray-500">{taskGroup.first_name && taskGroup.last_name ? `${taskGroup.first_name} ${taskGroup.last_name}` : "N/A"}</span>
+                      <span className="text-gray-500 font-semibold">Customer Name</span> - <span className="text-gray-500">{[taskGroup.first_name?.trim(), taskGroup.last_name?.trim()].filter(Boolean).join(" ") || "N/A"}</span>
                     </p>
                     <p>
                       <span className="text-gray-500 font-semibold">Call Time</span> - <span className="text-gray-500">{taskGroup.call_time}</span>
@@ -329,5 +329,4 @@ export default function FollowupTasksModal({
     </Dialog>
   );
 }
-
 
