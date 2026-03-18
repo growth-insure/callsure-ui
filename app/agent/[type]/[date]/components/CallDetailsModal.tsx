@@ -50,6 +50,8 @@ export default function CallDetailsModal({
   data,
   onActionItemsUpdate,
 }: CallDetailsModalProps) {
+  const sectionCardClass = "rounded-md border border-slate-200 bg-white p-4";
+  const sectionTitleClass = "text-sm font-semibold text-slate-900";
   const params = useParams();
   const { date = "" } = params as { date: string };
   const { user } = useAuthStore();
@@ -201,19 +203,22 @@ export default function CallDetailsModal({
 
         <div className="space-y-6 overflow-y-auto flex-grow pr-6 custom-scrollbar">
           {/* Call Details */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
+          <div className={`${sectionCardClass} space-y-3`}>
+            <h3 className={sectionTitleClass}>Call Details</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
               <p>
                 Agent Name: {data.agentName} ({data.calldirection})
               </p>
               <p>Call Time: {data.callTime}</p>
               <p>Issue Resolved: {data.issueResolved ? "Yes" : "No"}</p>
-            </div>
-            <div className="text-right">
-              <p>Customer Name: {[data.first_name?.trim(), data.last_name?.trim()].filter(Boolean).join(" ") || "N/A"}</p>
-              <p>Phone: {data.phone}</p>
-              <p>Area: {data.area}</p>
-              <p>Call Duration: {data.duration} Seconds</p>
+              </div>
+              <div className="text-right">
+                <p>Customer Name: {[data.first_name?.trim(), data.last_name?.trim()].filter(Boolean).join(" ") || "N/A"}</p>
+                <p>Phone: {data.phone}</p>
+                <p>Area: {data.area}</p>
+                <p>Call Duration: {data.duration} Seconds</p>
+              </div>
             </div>
           </div>
 
@@ -221,8 +226,8 @@ export default function CallDetailsModal({
           {data.hawksoft_url &&
             Array.isArray(data.hawksoft_url) &&
             data.hawksoft_url.length > 0 && (
-              <div className="space-y-2">
-                <p className="font-medium">Hawksoft URLs ({data.hawksoft_url.length}) :</p>
+              <div className={`${sectionCardClass} space-y-2`}>
+                <h3 className={sectionTitleClass}>Hawksoft URLs ({data.hawksoft_url.length})</h3>
                 <div className="flex flex-col gap-2">
                   {data.hawksoft_url.map((url, index) => (
                     <a
@@ -261,8 +266,8 @@ export default function CallDetailsModal({
 
           {/* Executive Summary */}
           {data.executiveSummary && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Executive Summary</h3>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Executive Summary</h3>
               <p className="text-sm text-gray-700">{data.executiveSummary}</p>
             </div>
           )}
@@ -327,8 +332,8 @@ export default function CallDetailsModal({
 
           {/* Action Items */}
           {data.actionItems.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Action Items for {data.agentName}</h3>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Action Items for {data.agentName}</h3>
               <ul className="space-y-2 text-sm">
                 {data.actionItems.map((action, index) => (
                   <li key={index} className="flex items-start gap-2">

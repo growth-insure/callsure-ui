@@ -51,6 +51,8 @@ export default function CallDetailsModal({
   data,
 }: CallDetailsModalProps) {
   if (!data) return null;
+  const sectionCardClass = "rounded-md border border-slate-200 bg-white p-4";
+  const sectionTitleClass = "text-sm font-semibold text-slate-900";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -69,19 +71,22 @@ export default function CallDetailsModal({
 
         <div className="space-y-6 overflow-y-auto flex-grow pr-6 custom-scrollbar">
           {/* Call Details */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
+          <div className={`${sectionCardClass} space-y-3`}>
+            <h3 className={sectionTitleClass}>Call Details</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
               <p>
                 Agent Name: {data.agentName} ({data.calldirection})
               </p>
               <p>Call Time: {data.callTime}</p>
               <p>Issue Resolved: {data.issueResolved ? "Yes" : "No"}</p>
-            </div>
-            <div className="text-right">
-              <p>Customer Name: {[data.first_name?.trim(), data.last_name?.trim()].filter(Boolean).join(" ") || "N/A"}</p>
-              <p>Phone: {data.phone}</p>
-              <p>Area: {data.area}</p>
-              <p>Call Duration: {data.duration} Seconds</p>
+              </div>
+              <div className="text-right">
+                <p>Customer Name: {[data.first_name?.trim(), data.last_name?.trim()].filter(Boolean).join(" ") || "N/A"}</p>
+                <p>Phone: {data.phone}</p>
+                <p>Area: {data.area}</p>
+                <p>Call Duration: {data.duration} Seconds</p>
+              </div>
             </div>
           </div>
 
@@ -89,8 +94,8 @@ export default function CallDetailsModal({
           {data.hawksoft_url && 
            Array.isArray(data.hawksoft_url) && 
            data.hawksoft_url.length > 0 && (
-            <div className="space-y-2">
-              <p className="font-medium">Hawksoft URLs ({data.hawksoft_url.length}) :</p>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Hawksoft URLs ({data.hawksoft_url.length})</h3>
               <div className="flex flex-col gap-2">
                 {data.hawksoft_url.map((url, index) => (
                   <a
@@ -111,8 +116,8 @@ export default function CallDetailsModal({
 
           {/* Insurance Coverages */}
           {data.coverages.length > 0 && (
-            <div className="flex items-center space-x-2">
-              <p className="font-medium">Insurance Coverages discussed:</p>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Insurance Coverages Discussed</h3>
               <div className="flex flex-wrap gap-2">
                 {data.coverages.map((coverage, index) => (
                   <Badge
@@ -129,44 +134,44 @@ export default function CallDetailsModal({
 
           {/* Executive Summary */}
           {data.executiveSummary && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Executive Summary</h3>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Executive Summary</h3>
               <p className="text-sm text-gray-700">{data.executiveSummary}</p>
             </div>
           )}
 
           {/* Call Disposition */}
           {data.disposition && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Call Disposition</h3>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Call Disposition</h3>
               <p className="text-sm">{data.disposition}</p>
             </div>
           )}
 
           {/* Confusion Section */}
           {data.confusion && (
-            <div className="space-y-2 rounded-md bg-red-50 p-4 border border-red-100">
-              <h3 className="font-medium text-black-800">
+            <div className={`${sectionCardClass} space-y-2 bg-red-50 border-red-200`}>
+              <h3 className={sectionTitleClass}>
                 Confusion or misunderstanding in the conversation
               </h3>
-              <p className="text-sm text-black-700">{data.confusion}</p>
+              <p className="text-sm text-gray-800">{data.confusion}</p>
             </div>
           )}
 
           {/* Complaint Section */}
           {data.complaint && (
-            <div className="space-y-2 rounded-md bg-red-50 p-4 border border-red-100">
-              <h3 className="font-medium text-black-800">
+            <div className={`${sectionCardClass} space-y-2 bg-red-50 border-red-200`}>
+              <h3 className={sectionTitleClass}>
                 Complaint or dissatisfaction in the conversation
               </h3>
-              <p className="text-sm text-black-700">{data.complaint}</p>
+              <p className="text-sm text-gray-800">{data.complaint}</p>
             </div>
           )}
 
           {/* Highlights */}
           {data.highlights.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Highlights</h3>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Highlights</h3>
               <ul className="space-y-2 text-sm">
                 {data.highlights.map((highlight, index) => (
                   <li key={index} className="flex items-start gap-2">
@@ -180,8 +185,8 @@ export default function CallDetailsModal({
 
           {/* Main Issues */}
           {data.mainIssues.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Main Issues</h3>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Main Issues</h3>
               <ul className="space-y-2 text-sm">
                 {data.mainIssues.map((issue, index) => (
                   <li key={index} className="flex items-start gap-2">
@@ -195,8 +200,8 @@ export default function CallDetailsModal({
 
           {/* Action Items */}
           {data.actionItems.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Action Items for {data.agentName}</h3>
+            <div className={`${sectionCardClass} space-y-2`}>
+              <h3 className={sectionTitleClass}>Action Items for {data.agentName}</h3>
               <ul className="space-y-2 text-sm">
                 {data.actionItems.map((action, index) => (
                   <li key={index} className="flex items-start gap-2">
@@ -209,11 +214,11 @@ export default function CallDetailsModal({
           )}
 
           {/* Call Transcript */}
-          <div className="space-y-2">
+          <div className={`${sectionCardClass} space-y-2`}>
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="transcript" className="border rounded-md">
+              <AccordionItem value="transcript" className="border rounded-md border-slate-200">
                 <AccordionTrigger className="px-4 hover:no-underline">
-                  <span className="font-medium">Call Transcript</span>
+                  <span className={sectionTitleClass}>Call Transcript</span>
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="bg-gray-50 p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
