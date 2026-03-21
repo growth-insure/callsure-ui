@@ -1,4 +1,5 @@
 "use client";
+import { AudioSourceBadge } from "./AudioSourceBadge";
 import { useAuthStore } from "@/store/auth/store";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -43,7 +44,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <div className="flex items-center space-x-6">
           <Link href={isSuperAdmin ? "/dashboard" : "/agent"} className="text-xl font-bold hover:text-[#00BFA5] transition-colors">
-            CALL LOG ANALYTICS
+            CallSure
           </Link>
           {isSuperAdmin && (
             <>
@@ -62,8 +63,8 @@ const Navbar = () => {
             </>
           )}
         </div>
-        <div className="flex items-center space-x-3">
-          {/* User Initials Logo */}
+        <div className="flex items-center gap-3">
+          <AudioSourceBadge />
           <div className="bg-gradient-to-r from-[#00BFA5] to-[#00BFA5]/80 px-3 py-1 rounded-lg text-white text-sm font-bold shadow-sm">
             {getUserInitials()}
           </div>

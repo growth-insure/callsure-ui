@@ -26,7 +26,7 @@ export async function sendWelcomeEmail(emailData: EmailData): Promise<boolean> {
     const msg = {
       to: emailData.to,
       from: fromEmail as string,
-      subject: 'Welcome to Call Log Analytics - Your Account is Ready',
+      subject: 'Welcome to CallSure - Your Account is Ready',
       html: generateEmailHTML(emailData),
     };
     
@@ -52,7 +52,7 @@ function generateEmailHTML(emailData: EmailData): string {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Welcome to Call Log Analytics</title>
+      <title>Welcome to CallSure</title>
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -67,7 +67,7 @@ function generateEmailHTML(emailData: EmailData): string {
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎉 Welcome to Call Log Analytics!</h1>
+          <h1>🎉 Welcome to CallSure!</h1>
         </div>
         <div class="content">
           <h2>Hello ${emailData.name}!</h2>
@@ -102,7 +102,7 @@ function generateEmailHTML(emailData: EmailData): string {
           
           <p>If you have any questions or need assistance, please contact your system administrator.</p>
           
-          <p>Best regards,<br>The Call Log Analytics Team</p>
+          <p>Best regards,<br>The CallSure Team</p>
         </div>
         <div class="footer">
           <p>This is an automated message. Please do not reply to this email.</p>

@@ -58,6 +58,13 @@ deploy_to_vercel_windows:
         Add-Env ("NEXT_PUBLIC_APP_URL_$env:CLIENT") "NEXT_PUBLIC_APP_URL"
         Add-Env ("NEXT_PUBLIC_PASSWORD_RESET_REDIRECT_$env:CLIENT") "NEXT_PUBLIC_PASSWORD_RESET_REDIRECT"
 
+        $audioSourceKey = "NEXT_PUBLIC_AUDIO_SOURCE_CLIENT_$env:CLIENT"
+        $audioSourceValue = (Get-Item env:$audioSourceKey -ErrorAction SilentlyContinue).Value
+        if ($audioSourceValue) {
+          "NEXT_PUBLIC_AUDIO_SOURCE_CLIENT=$audioSourceValue" |
+            Out-File -Append -Encoding utf8 .env
+        }
+
         if (-not $env:NEXT_PUBLIC_SENDGRID_FROM_EMAIL) {
           Write-Error "Missing NEXT_PUBLIC_SENDGRID_FROM_EMAIL"
           exit 1

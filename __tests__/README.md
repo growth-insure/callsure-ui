@@ -2,7 +2,7 @@
 
 ## Overview
 
-This test suite provides comprehensive coverage across **3 layers** for the CallSure UI (call-logs-analytics) Next.js application. All tests are **fully mocked** — no real Supabase calls, no SendGrid emails, no data is ever modified.
+This test suite provides comprehensive coverage across **3 layers** for the CallSure UI (`callsure-ui`) Next.js application. All tests are **fully mocked** — no real Supabase calls, no SendGrid emails, no data is ever modified.
 
 ---
 

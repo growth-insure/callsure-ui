@@ -1,4 +1,4 @@
-# Call Logs Analytics
+# CallSure
 
 A Next.js web application for viewing and analyzing call logs with role-based dashboards for **admins** (full analytics) and **agents** (personal call history). Includes authentication, user management, and call metrics with charts and action items.
 
@@ -81,6 +81,7 @@ Create a `.env.local` (or `.env`) in the project root with:
 | `NEXT_PUBLIC_TAB_INFO_TITLE` | Browser tab title |
 | `NEXT_PUBLIC_TAB_INFO_DESCRIPTION` | Meta description |
 | `NEXT_PUBLIC_LOGIN_LOGO` | Optional logo URL (e.g. for login/pending-approval) |
+| `NEXT_PUBLIC_AUDIO_SOURCE_CLIENT` | Audio source shown in the header (`lightspeedvoice` by default; set `ringcentral` for RingCentral clients) |
 | `NEXT_PUBLIC_SENDGRID_API_KEY` | SendGrid API key (e.g. password reset emails) |
 | `NEXT_PUBLIC_SENDGRID_FROM_EMAIL` | From address for SendGrid |
 | `NEXT_PUBLIC_APP_URL` | Base URL of the app (e.g. for links in emails) |
@@ -114,8 +115,8 @@ Open [http://localhost:3000](http://localhost:3000). You’ll land on the login 
 
 ## Deployment
 
-- **Vercel:** The project is set up for deployment on [Vercel](https://vercel.com). Set the same environment variables in the Vercel project.
-- **CI:** `vercel-deploy.yml` and `windows-vercel-deploy.yml` show a GitLab CI pattern that deploys to Vercel with per-client env vars (e.g. `NEXT_PUBLIC_SUPABASE_URL_<CLIENT>`). Adapt as needed for your GitLab/git setup.
+- **Vercel:** The project is set up for deployment on [Vercel](https://vercel.com). Set the same environment variables in the Vercel project, including `NEXT_PUBLIC_AUDIO_SOURCE_CLIENT`.
+- **CI:** `vercel-deploy.yml` and `windows-vercel-deploy.yml` show a GitLab CI pattern that deploys to Vercel with per-client env vars (e.g. `NEXT_PUBLIC_SUPABASE_URL_<CLIENT>` and `NEXT_PUBLIC_AUDIO_SOURCE_CLIENT_<CLIENT>`). Adapt as needed for your GitLab/git setup.
 
 ## Learn more
 

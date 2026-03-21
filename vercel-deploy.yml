@@ -53,6 +53,9 @@ deploy_to_vercel:
       logo_var="NEXT_PUBLIC_LOGIN_LOGO_${CLIENT}"
       echo "NEXT_PUBLIC_LOGIN_LOGO=${!logo_var}" >> .env
 
+      audio_source_var="NEXT_PUBLIC_AUDIO_SOURCE_CLIENT_${CLIENT}"
+      echo "NEXT_PUBLIC_AUDIO_SOURCE_CLIENT=${!audio_source_var}" >> .env
+
       supabase_var="NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY_${CLIENT}"
       echo "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=${!supabase_var}" >> .env
 

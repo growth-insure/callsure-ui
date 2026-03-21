@@ -50,7 +50,7 @@ describe("sendWelcomeEmail", () => {
       expect.objectContaining({
         to: "user@test.com",
         from: "noreply@test.com",
-        subject: "Welcome to Call Log Analytics - Your Account is Ready",
+        subject: "Welcome to CallSure - Your Account is Ready",
       })
     );
   });

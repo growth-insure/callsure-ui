@@ -18,6 +18,7 @@ vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
 vi.stubEnv("NEXT_PUBLIC_PASSWORD_RESET_REDIRECT", "http://localhost:3000/reset-password");
 vi.stubEnv("NEXT_PUBLIC_TAB_INFO_TITLE", "Test App");
 vi.stubEnv("NEXT_PUBLIC_TAB_INFO_DESCRIPTION", "Test Description");
+vi.stubEnv("NEXT_PUBLIC_AUDIO_SOURCE_CLIENT", "lightspeedvoice");
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
