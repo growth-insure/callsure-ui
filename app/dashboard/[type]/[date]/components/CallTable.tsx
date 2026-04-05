@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
-// Add these imports at the top
+import { useParams } from "next/navigation";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import html2pdf from "html2pdf.js";
@@ -16,36 +16,98 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useCallDetailsStore } from "../store/store";
 import CallDetailsModal from "./CallDetailsModal";
 import {
+  ArrowDown,
+  ArrowDownLeft,
+  ArrowUp,
+  ArrowUpRight,
+  ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   FileSpreadsheet,
   Printer,
-  X,
-  ExternalLink,
 } from "lucide-react";
 import FollowupTasksModal from "./FollowupTasksModal";
+
+type SortDirection = "asc" | "desc";
+type SortField =
+  | "call_time"
+  | "call_direction"
+  | "customer_name"
+  | "phone_number"
+  | "agent_name"
+  | "call_duration"
+  | "confusion"
+  | "complaint";
+
+const DEFAULT_SORT: { field: SortField; direction: SortDirection } = {
+  field: "call_time",
+  direction: "desc",
+};
+
+const getCustomerName = (call: CallRecord) =>
+  [call.first_name?.trim(), call.last_name?.trim()].filter(Boolean).join(" ");
+
+const getCallTimeValue = (callTime?: string) => {
+  if (!callTime) {
+    return 0;
+  }
+
+  const timeParts = callTime.split(":").map(Number);
+  if (timeParts.length >= 2 && timeParts.every((part) => !Number.isNaN(part))) {
+    const [hours = 0, minutes = 0, seconds = 0] = timeParts;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  const parsedDate = new Date(callTime).getTime();
+  return Number.isNaN(parsedDate) ? 0 : parsedDate;
+};
+
+function DirectionIcon({ direction }: { direction: string }) {
+  const normalizedDirection = direction?.toLowerCase();
+  const isInbound = normalizedDirection === "inbound";
+  const label = isInbound ? "Inbound" : "Outbound";
+  const shortLabel = isInbound ? "IN" : "OUT";
+  const Icon = isInbound ? ArrowDownLeft : ArrowUpRight;
+  const badgeClass = isInbound
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-amber-200 bg-amber-50 text-amber-700";
+
+  return (
+    <span
+      className="group relative inline-flex items-center"
+      aria-label={label}
+      title={label}
+    >
+      <span
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${badgeClass}`}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        <span>{shortLabel}</span>
+      </span>
+      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow group-hover:block">
+        {label}
+      </span>
+    </span>
+  );
+}
+
 export default function CallTable() {
   const calls = useCallDetailsStore((state) => state.calls);
-  // type Call = typeof calls[number];
+  const params = useParams();
+  const { type = "" } = params as { type?: string };
+  const isAllCallsView = type !== "confusions" && type !== "complaints";
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCall, setSelectedCall] = useState<SelectedCallRecord | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState("");
-  const [selectedOperator, setSelectedOperator] = useState("equals");
-  const [selectedValue, setSelectedValue] = useState("");
-  const [sorted, setSorted] = useState<CallRecord[]>([]);
+  const [sortConfig, setSortConfig] = useState(DEFAULT_SORT);
+  const [showConfusionOnly, setShowConfusionOnly] = useState(false);
+  const [showComplaintOnly, setShowComplaintOnly] = useState(false);
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
   const [hoveredCallId, setHoveredCallId] = useState<number | null>(null);
   const [followupTasks, setFollowupTasks] = useState<
@@ -63,17 +125,14 @@ export default function CallTable() {
       call_time: string;
     }>
   >([]);
+  const { field: sortField, direction: sortDirection } = sortConfig;
 
-  const sortedData = useCallback((data: typeof calls) => {
-    return [...data].sort((a, b) => {
-      if(!a.call_time || !b.call_time) return 0; // Handle cases where call_time might be undefined
-      const dateA = new Date(a.call_time).getTime();
-      const dateB = new Date(b.call_time).getTime();
-      return dateB - dateA;
-    });
+  const compareCallTimeDesc = useCallback((a: CallRecord, b: CallRecord) => {
+    const dateA = getCallTimeValue(a.call_time);
+    const dateB = getCallTimeValue(b.call_time);
+    return dateB - dateA;
   }, []);
 
-  // Filter calls based on searchable fields and advanced filters
   const getFilteredData = useCallback((callsData: CallRecord[]) => {
     return callsData.filter((call) => {
       const matchesSearch = Object.values({
@@ -83,6 +142,7 @@ export default function CallTable() {
         agent_name: call.agent_name,
         first_name: call.first_name,
         last_name: call.last_name,
+        displayCustomerName: getCustomerName(call),
         customerName: call.call_summary?.customerName,
         call_duration: call.call_duration,
         call_date: call.call_date,
@@ -90,38 +150,145 @@ export default function CallTable() {
         value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
       );
 
-      if (selectedAgent && selectedValue) {
-        const fieldValue = call[selectedAgent as keyof typeof call];
-        const match =
-          selectedOperator === "equals"
-            ? fieldValue === selectedValue
-            : fieldValue !== selectedValue;
-        return matchesSearch && match;
+      if (!matchesSearch) {
+        return false;
       }
 
-      return matchesSearch;
+      if (!isAllCallsView || (!showConfusionOnly && !showComplaintOnly)) {
+        return true;
+      }
+
+      return (
+        (showConfusionOnly && call.call_summary?.confusion_flag) ||
+        (showComplaintOnly && call.call_summary?.complaint_flag)
+      );
     });
-  }, [searchTerm, selectedAgent, selectedValue, selectedOperator]);
+  }, [isAllCallsView, searchTerm, showComplaintOnly, showConfusionOnly]);
+
+  const sortedCalls = useMemo(() => {
+    const filteredCalls = getFilteredData(calls);
+
+    return [...filteredCalls].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case "call_time": {
+          const dateA = getCallTimeValue(a.call_time);
+          const dateB = getCallTimeValue(b.call_time);
+          comparison = dateA - dateB;
+          break;
+        }
+        case "call_direction":
+          comparison = (a.call_direction || "").localeCompare(b.call_direction || "", undefined, {
+            sensitivity: "base",
+          });
+          break;
+        case "customer_name": {
+          const nameA = getCustomerName(a);
+          const nameB = getCustomerName(b);
+          const isBlankA = !nameA;
+          const isBlankB = !nameB;
+
+          if (isBlankA !== isBlankB) {
+            return sortDirection === "asc"
+              ? isBlankA
+                ? -1
+                : 1
+              : isBlankA
+                ? 1
+                : -1;
+          }
+
+          comparison = nameA.localeCompare(nameB, undefined, {
+            sensitivity: "base",
+          });
+          break;
+        }
+        case "phone_number":
+          comparison = (a.phone_number || "").localeCompare(b.phone_number || "", undefined, {
+            sensitivity: "base",
+          });
+          break;
+        case "agent_name":
+          comparison = (a.agent_name || "").localeCompare(b.agent_name || "", undefined, {
+            sensitivity: "base",
+          });
+          break;
+        case "call_duration":
+          comparison = (a.call_duration || 0) - (b.call_duration || 0);
+          break;
+        case "confusion":
+          comparison = Number(a.call_summary?.confusion_flag) - Number(b.call_summary?.confusion_flag);
+          break;
+        case "complaint":
+          comparison = Number(a.call_summary?.complaint_flag) - Number(b.call_summary?.complaint_flag);
+          break;
+      }
+
+      if (comparison === 0) {
+        return compareCallTimeDesc(a, b);
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [calls, compareCallTimeDesc, getFilteredData, sortDirection, sortField]);
+
+  const pageCount = Math.ceil(sortedCalls.length / itemsPerPage);
 
   useEffect(() => {
-    const filtered = getFilteredData(calls);
-    const sorted = sortedData(filtered);
-    setSorted(sorted);
-  }, [calls, getFilteredData, sortedData]);
+    if (pageCount === 0 && currentPage !== 1) {
+      setCurrentPage(1);
+      return;
+    }
 
-  const filteredData = useMemo(() => getFilteredData(calls), [calls, getFilteredData]);
-  const pageCount = Math.ceil(filteredData.length / itemsPerPage);
+    if (pageCount > 0 && currentPage > pageCount) {
+      setCurrentPage(pageCount);
+    }
+  }, [currentPage, pageCount]);
 
   const paginatedData = useMemo(
     () =>
-      sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
-    [sorted, currentPage, itemsPerPage]
+      sortedCalls.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [sortedCalls, currentPage, itemsPerPage]
   );
+
+  const handleSort = (field: SortField) => {
+    setCurrentPage(1);
+    setSortConfig((currentSort) => {
+      if (currentSort.field === field) {
+        return {
+          field,
+          direction: currentSort.direction === "asc" ? "desc" : "asc",
+        };
+      }
+
+      return {
+        field,
+        direction: field === "call_time" ? "desc" : "asc",
+      };
+    });
+  };
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />;
+    }
+
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-3.5 w-3.5 text-[#00B3A4]" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-[#00B3A4]" />
+    );
+  };
+
+  const startEntry = sortedCalls.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endEntry = sortedCalls.length === 0 ? 0 : Math.min(currentPage * itemsPerPage, sortedCalls.length);
+
   const exportToExcel = () => {
-    // Prepare data for export
-    const exportData = filteredData.map((call) => ({
+    const exportData = sortedCalls.map((call) => ({
       "Call Time": call.call_time,
       Direction: call.call_direction,
+      "Customer Name": getCustomerName(call) || "-",
       "Phone Number": call.phone_number,
       "Agent Name": call.agent_name,
       "Duration (s)": call.call_duration,
@@ -206,7 +373,7 @@ export default function CallTable() {
 
   // Group followup tasks by call
   const handleFollowupTasksClick = () => {
-    const source = sorted && sorted.length > 0 ? sorted : calls;
+    const source = sortedCalls.length > 0 ? sortedCalls : calls;
     if (!source || source.length === 0) {
       setFollowupTasks([]);
       setIsFollowupModalOpen(true);
@@ -246,100 +413,48 @@ export default function CallTable() {
         </Button>
       </div>
       <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <span className="text-sm">Custom Search Builder</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearchTerm("");
-              setSelectedAgent("");
-              setSelectedOperator("equals");
-              setSelectedValue("");
-              setCurrentPage(1);
-            }}
-          >
-            Clear All
-          </Button>
-        </div>
-
-        <div className="flex flex-col gap-4 overflow-visible">
-          <div className="flex items-center gap-2 flex-wrap overflow-visible">
-            <div className="flex items-center gap-2">
-              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select Field" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-100">
-                  <SelectItem value="agent_name">Agent Name</SelectItem>
-                  <SelectItem value="call_direction">Call Direction</SelectItem>
-                  {/* <SelectItem value="call_duration">Duration</SelectItem> */}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedOperator}
-                onValueChange={setSelectedOperator}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Equals" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="equals">Equals</SelectItem>
-                  <SelectItem value="not_equals">Not Equals</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={selectedValue} onValueChange={setSelectedValue}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select Value" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(
-                    new Set(
-                      calls.map((call) => {
-                        const value = selectedAgent
-                          ? call[selectedAgent as keyof typeof call]
-                          : "";
-                        return value?.toString() || "";
-                      })
-                    )
-                  )
-                    .filter(Boolean)
-                    .map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setSelectedAgent("");
-                  setSelectedOperator("equals");
-                  setSelectedValue("");
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* <Button variant="outline">Add Condition</Button> */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportToExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportToPDF}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={exportToExcel}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Excel
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportToPDF}>
-                <Printer className="h-4 w-4 mr-2" />
-                Print
-              </Button>
-            </div>
+          <div className="flex flex-col gap-3 lg:items-end">
+            {isAllCallsView && (
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="text-sm text-muted-foreground">Filters:</span>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={showConfusionOnly}
+                    onChange={(event) => {
+                      setShowConfusionOnly(event.target.checked);
+                      setCurrentPage(1);
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 accent-[#00B3A4]"
+                  />
+                  Confusion only
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={showComplaintOnly}
+                    onChange={(event) => {
+                      setShowComplaintOnly(event.target.checked);
+                      setCurrentPage(1);
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 accent-[#00B3A4]"
+                  />
+                  Complaint only
+                </label>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Search:</span>
@@ -361,14 +476,86 @@ export default function CallTable() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Call Time</TableHead>
-            <TableHead>Direction</TableHead>
-            <TableHead>Customer Name</TableHead>
-            <TableHead>Phone Number</TableHead>
-            <TableHead>Agent Name</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead>Confusion</TableHead>
-            <TableHead>Complaint</TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("call_time")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Call Time</span>
+                {renderSortIcon("call_time")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("call_direction")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Direction</span>
+                {renderSortIcon("call_direction")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("customer_name")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Customer Name</span>
+                {renderSortIcon("customer_name")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("phone_number")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Phone Number</span>
+                {renderSortIcon("phone_number")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("agent_name")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Agent Name</span>
+                {renderSortIcon("agent_name")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("call_duration")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Duration</span>
+                {renderSortIcon("call_duration")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("confusion")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Confusion</span>
+                {renderSortIcon("confusion")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort("complaint")}
+                className="flex items-center gap-1 font-semibold text-left transition-colors hover:text-[#00B3A4]"
+              >
+                <span>Complaint</span>
+                {renderSortIcon("complaint")}
+              </button>
+            </TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -376,14 +563,16 @@ export default function CallTable() {
           {paginatedData.map((call) => (
             <TableRow key={call.id}>
               <TableCell>{call.call_time}</TableCell>
-              <TableCell>{call.call_direction}</TableCell>
+              <TableCell>
+                <DirectionIcon direction={call.call_direction} />
+              </TableCell>
               <TableCell
                 className="relative group"
                 onMouseEnter={() => setHoveredCallId(call.id)}
                 onMouseLeave={() => setHoveredCallId(null)}
               >
                 <div className="flex items-center gap-1">
-                  {[call.first_name?.trim(), call.last_name?.trim()].filter(Boolean).join(" ") || "-"}
+                  {getCustomerName(call) || "-"}
                   {call.hawksoft_url && 
                    Array.isArray(call.hawksoft_url) && 
                    call.hawksoft_url.length > 0 && (
@@ -456,9 +645,7 @@ export default function CallTable() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
-            Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-            {Math.min(currentPage * itemsPerPage, sorted.length)} of{" "}
-            {sorted.length} entries
+            Showing {startEntry} to {endEntry} of {sortedCalls.length} entries
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -477,7 +664,7 @@ export default function CallTable() {
             onClick={() =>
               setCurrentPage((prev) => Math.min(prev + 1, pageCount))
             }
-            disabled={currentPage === pageCount}
+            disabled={pageCount === 0 || currentPage === pageCount}
           >
             Next
             <ChevronRight className="h-4 w-4" />
